@@ -7,6 +7,7 @@
 # @PROJECT_NAME : new_tyc
 import csv
 import sys
+import traceback
 import urllib
 
 reload(sys)
@@ -45,7 +46,7 @@ def get_parse(url):
             index = random.randint(1, len(proxies) - 1)
             proxy = {"http": "http://" + str(proxies[index]), "https": "http://" + str(proxies[index])}
             print 'Now Proxy is : ' + str(proxy) + ' @ ' + str(datetime.datetime.now())
-            response = requests.get(url, timeout=5, headers=headers, proxies=proxy)
+            response = requests.get(url, timeout=19, headers=headers, proxies=proxy)
             if response.status_code == 200:
                 return response
                 # return response
@@ -94,7 +95,6 @@ def get_chinese(str):
     c = "".join(b.findall(str.decode('utf8')))
     return c
 
-
 def get_keywords():
     keywords_list = []
     # with open("/Users/huaiz/PycharmProjects/new_tyc/cmpy_list_mission_tianyancha.csv", "r") as csvFile:
@@ -128,8 +128,9 @@ def get_first_info(keyword):
             try:
                 content_1 = get_parse(url)
                 if content_1 != None:
+                    # print content_1.text
 
-                    if content_1.text.__contains__('https://static.tianyancha.com/wap/images/notFound.png'):
+                    if content_1.text.__contains__('https://static.tianyancha.com/wap/images/noResult1013.jpg'):
                         print u'nofound.img'
                         break
                     elif content_1.text.__contains__('https://m.tianyancha.com/login'):
@@ -139,27 +140,27 @@ def get_first_info(keyword):
                         if state == 'need login':
 
                             num_error += 1
+                            print 'num_error' ,num_error
                             if num_error == max_error:
                                 print u'尝试过5次 跳过'
                                 break
                             else:
                                 continue
-
+                        break
                     else:
-                        conn = MySQLdb.connect(host="localhost", user="root", passwd="root",
-                                               db="new_tyc",
-                                               charset="utf8")
+                        conn = MySQLdb.connect(host="139.198.189.129", port=20009, user="root", passwd="somao1129",
+                                               db="tianyancha", charset="utf8")
                         cursor = conn.cursor()
-
-                        urls_result = re.findall('<div class="search_right_item"><div><a href="(.*?)"', str(content_1.text),
+                        print url
+                        urls_result = re.findall('<div class="search_right_item ml10"><div><a href="(.*?)"', str(content_1.text),
                                                  re.S)
                         id_list = re.findall(
-                            '<div class="search_right_item"><div><a href="https://www.tianyancha.com/company/(.*?)"',
+                            '<div class="search_right_item ml10"><div><a href="https://www.tianyancha.com/company/(.*?)"',
                             str(content_1.text), re.S)
                         corp_name = re.findall(
                             'class="query_name sv-search-company f18 in-block vertical-middle"><span>(.*?)</span>',
                             str(content_1.text), re.S)
-
+                        print len(urls_result)
                         for x in range(len(urls_result)):
                             print keyword
                             print urls_result[x]
@@ -179,13 +180,20 @@ def get_first_info(keyword):
 
                             )
                             conn.commit()
-
                             print '插入时间 _@_ ' + str(datetime.datetime.now())
                         break
-                break
+                else:
+                    print 'content is none'
+                    break
             except Exception, e:
-                print str(e)
-                break
+                # print str(e)
+                if str(e).find('HTTPSConnectionPool')>=0:
+                    print 'HTTPSConnectionPool'
+                    continue
+                else:
+                    print  'ABC ' + str(e)
+                    print traceback.format_exc()
+                    break
 
 
 if __name__ == '__main__':
@@ -193,17 +201,18 @@ if __name__ == '__main__':
     keywords_list = get_keywords()
     print keywords_list
 ####TEST
-    conn = MySQLdb.connect(host="localhost", user="root", passwd="root",
-                           db="new_tyc",
-                           charset="utf8")
+    conn = MySQLdb.connect(host="139.198.189.129", port=20009, user="root", passwd="somao1129",
+                           db="tianyancha", charset="utf8")
     cursor = conn.cursor()
 
-    cursor.execute('select keyword from tyc_prepare_info')
+    cursor.execute('select distinct keyword from tyc_prepare_info')
     old_keywords = []
     old = cursor.fetchall()
     for y in range(0, len(old)):
         old_keywords.append(old[y][0])
     cursor.close()
+
+
     conn.close()
 
     thread_num = 5
@@ -220,6 +229,7 @@ if __name__ == '__main__':
         t.join()
         start_no += thread_num
 
-
-    # for keyword in keywords_list:
-    #     get_first_info(keyword)
+    # keywords_list=['黑鸥科技有限公司','黑莓公司','香港青山发电有限公司','马仕智才设计公司']
+    # keywords_list = ['黑鸥科技有限公司']
+    for keyword in keywords_list:
+        get_first_info(keyword)
